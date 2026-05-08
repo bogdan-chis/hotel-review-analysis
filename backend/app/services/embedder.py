@@ -1,13 +1,9 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-# ── Model ─────────────────────────────────────────────────────────────────────
 
-# Load once at module level — SentenceTransformer takes a few seconds to
-# initialise and we don't want that cost on every request.
-# all-MiniLM-L6-v2: 80 MB, 384-dimensional vectors, fast and accurate enough
-# for semantic similarity at this scale.
-_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+_model = SentenceTransformer("BAAI/bge-small-en-v1.5")
 
 def embed(texts: list[str]) -> np.ndarray:
     """
