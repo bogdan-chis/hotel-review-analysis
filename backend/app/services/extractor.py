@@ -6,17 +6,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Config ────────────────────────────────────────────────────────────────────
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama3.2:1b")
 
-
+# Resolve the path to the system prompt relative to this file so it works
+# regardless of where uvicorn is launched from.
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "prompts")
 SYSTEM_PROMPT_PATH = os.path.join(PROMPTS_DIR, "system_prompt.txt")
 
+# ── Ollama client ─────────────────────────────────────────────────────────────
 
+# Instantiate once at module level — avoids recreating the client on every call.
 client = ollama.Client(host=OLLAMA_HOST)
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _load_system_prompt() -> str:
     """Read the system prompt from disk. Raises clearly if the file is missing."""
@@ -29,6 +34,21 @@ def _load_system_prompt() -> str:
         return f.read().strip()
 
 
+def _is_valid_item(item: str) -> bool:
+    """
+    Return False for items that are clearly LLM formatting artifacts rather
+    than real extracted phrases — e.g. "[", ".", single characters, or
+    strings that are just punctuation.
+    """
+    stripped = item.strip()
+    if len(stripped) < 4:
+        return False
+    # Reject items that contain no letters at all
+    if not any(c.isalpha() for c in stripped):
+        return False
+    return True
+
+
 def _parse_llm_response(raw: str, review: str) -> dict:
     """
     Parse the JSON string returned by the LLM.
@@ -38,16 +58,17 @@ def _parse_llm_response(raw: str, review: str) -> dict:
     never crashes the whole request.
     """
     try:
-        parsed = json.loads(raw)
-        # Ensure both keys exist and are lists, even if the model omitted one.
-        return {
-            "highlights": parsed.get("highlights", []),
-            "pain_points": parsed.get("pain_points", []),
-        }
+        # Sometimes the model wraps the JSON in markdown fences — strip them.
+        cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        parsed = json.loads(cleaned)
+        highlights = [i for i in parsed.get("highlights", []) if isinstance(i, str) and _is_valid_item(i)]
+        pain_points = [i for i in parsed.get("pain_points", []) if isinstance(i, str) and _is_valid_item(i)]
+        return {"highlights": highlights, "pain_points": pain_points}
     except json.JSONDecodeError:
         print(f"[extractor] WARNING: LLM returned invalid JSON for review:\n  {review}\n  Raw response: {raw}")
         return {"highlights": [], "pain_points": []}
 
+# ── Public API ────────────────────────────────────────────────────────────────
 
 def extract_from_review(review: str) -> dict:
     """
