@@ -12,7 +12,7 @@ The Review Intelligence System is a full-stack application that analyzes hotel c
 The backend and the local LLM run entirely inside Docker containers.
 
 A. **Configure Environment Variables:**
-Navigate to the `backend/` directory (if applicable) or the project root, and copy the example environment file:
+Navigate to the `backend/` directory and copy the example environment file:
 
 ```bash
 cp .env.example .env
@@ -25,7 +25,6 @@ B. **Start the Services:**
 Run the following command from the directory containing your `docker-compose.yml`:
 ```bash
 docker compose up --build
-
 ```
 
 
@@ -47,17 +46,13 @@ cd frontend
 2. **Install Dependencies:**
 ```bash
 npm install
-
 ```
 
 
 3. **Start the Development Server:**
 ```bash
 npm run dev
-
 ```
-
-
 
 The frontend interface will be instantly accessible at `http://localhost:5173`.
 
